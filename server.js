@@ -1,5 +1,5 @@
 const express = require('express');
-const session = require('express-session');
+const cookieSession = require('cookie-session');
 const bcrypt = require('bcryptjs');
 const path = require('path');
 const db = require('./db');
@@ -7,17 +7,32 @@ const { requireLogin, requireAdmin } = require('./auth');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const IS_VERCEL = !!process.env.VERCEL;
 
 // 中间件
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(session({
-  secret: process.env.SESSION_SECRET || 'ticket-system-secret-key-2026',
-  resave: false,
-  saveUninitialized: false,
-  cookie: { maxAge: 24 * 60 * 60 * 1000 } // 24小时
+app.use(cookieSession({
+  name: 'ts_session',
+  keys: [process.env.SESSION_SECRET || 'ticket-system-secret-key-2026-very-long'],
+  maxAge: 24 * 60 * 60 * 1000, // 24小时
+  httpOnly: true,
+  secure: IS_VERCEL, // Vercel 全 HTTPS
+  sameSite: 'lax',
+  overwrite: true
 }));
-app.use(express.static(path.join(__dirname, 'public')));
+
+// 静态文件：本地用 __dirname，Vercel 用 process.cwd()
+const publicDir = IS_VERCEL ? path.join(process.cwd(), 'public') : path.join(__dirname, 'public');
+app.use(express.static(publicDir));
+
+// 确保数据库就绪的中间件（serverless 冷启动时首次请求可能需等待初始化）
+app.use(async (req, res, next) => {
+  if (db.ready) {
+    try { await db.ready; } catch (e) { console.error('DB init error:', e.message); }
+  }
+  next();
+});
 
 // ============ 认证接口 ============
 
@@ -74,9 +89,8 @@ app.post('/api/login', async (req, res) => {
 
 // 登出
 app.post('/api/logout', (req, res) => {
-  req.session.destroy(() => {
-    res.json({ success: true });
-  });
+  req.session = null;
+  res.json({ success: true });
 });
 
 // 获取当前登录状态
@@ -160,14 +174,19 @@ app.delete('/api/tickets/:id', requireLogin, async (req, res) => {
   res.json({ success: true });
 });
 
-// ============ 启动（等待数据层就绪）============
-(async () => {
-  if (db.ready) await db.ready;
-  app.listen(PORT, () => {
-    console.log(`\n  ╔══════════════════════════════════════╗`);
-    console.log(`  ║   工单反馈系统已启动                  ║`);
-    console.log(`  ║   地址: http://localhost:${PORT}        ║`);
-    console.log(`  ║   管理员: admin / admin123           ║`);
-    console.log(`  ╚══════════════════════════════════════╝\n`);
-  });
-})();
+// ============ 启动 / 导出 ============
+// Vercel 环境导出 app 给 serverless 使用；本地环境启动监听
+if (IS_VERCEL) {
+  module.exports = app;
+} else {
+  (async () => {
+    if (db.ready) await db.ready;
+    app.listen(PORT, () => {
+      console.log(`\n  ╔══════════════════════════════════════╗`);
+      console.log(`  ║   工单反馈系统已启动                  ║`);
+      console.log(`  ║   地址: http://localhost:${PORT}        ║`);
+      console.log(`  ║   管理员: admin / admin123           ║`);
+      console.log(`  ╚══════════════════════════════════════╝\n`);
+    });
+  })();
+}
