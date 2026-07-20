@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>管理面板 - 工单反馈系统</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <nav class="navbar" id="navbar"></nav>
+
+  <div class="page-wrap">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">⚙️ 管理面板</h1>
+        <p class="page-subtitle">管理所有用户工单，处理反馈，更新状态</p>
+      </div>
+    </div>
+
+    <!-- 统计卡片 -->
+    <div class="admin-stats" id="statsArea"></div>
+
+    <!-- 筛选栏 -->
+    <div class="filter-bar">
+      <label>状态：</label>
+      <select id="statusFilter" onchange="loadTickets()">
+        <option value="all">全部</option>
+        <option value="pending">⏳ 待处理</option>
+        <option value="processing">🔧 处理中</option>
+        <option value="resolved">✅ 已解决</option>
+        <option value="closed">🔒 已关闭</option>
+      </select>
+      <label style="margin-left:12px">分类：</label>
+      <select id="categoryFilter" onchange="loadTickets()">
+        <option value="all">全部分类</option>
+        <option value="bug">🐛 Bug 反馈</option>
+        <option value="feature">💡 功能建议</option>
+        <option value="account">👤 账号问题</option>
+        <option value="performance">⚡ 性能问题</option>
+        <option value="ui">🎨 界面问题</option>
+        <option value="other">📦 其他</option>
+      </select>
+    </div>
+
+    <!-- 工单列表 -->
+    <div class="ticket-list" id="ticketList">
+      <div class="empty-state">
+        <div class="empty-icon">⏳</div>
+        <div class="empty-title">加载中...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 处理工单模态框 -->
+  <div class="modal-overlay" id="manageModal">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title" id="modalTitle">处理工单</div>
+        <button class="modal-close" onclick="closeModal()">✕</button>
+      </div>
+      <div class="modal-body" id="modalBody"></div>
+      <div class="modal-footer" id="modalFooter"></div>
+    </div>
+  </div>
+
+  <script src="/js/app.js"></script>
+  <script>
+    let allTickets = [];
+    let currentTicket = null;
+
+    (async () => {
+      const user = await requireAuth(true);
+      if (!user) return;
+      renderNavbar('admin');
+      await loadStats();
+      await loadTickets();
+    })();
+
+    async function loadStats() {
+      try {
+        const stats = await api('/api/admin/stats');
+        const cards = [
+          { icon: '🎫', val: stats.total, label: '工单总数', cls: 'blue' },
+          { icon: '⏳', val: stats.pending, label: '待处理', cls: 'orange' },
+          { icon: '🔧', val: stats.processing, label: '处理中', cls: 'purple' },
+          { icon: '✅', val: stats.resolved, label: '已解决', cls: 'green' },
+          { icon: '🔴', val: stats.urgent, label: '紧急未关闭', cls: 'orange' },
+          { icon: '👥', val: stats.users, label: '注册用户', cls: 'blue' },
+        ];
+        document.getElementById('statsArea').innerHTML = cards.map(c => `
+          <div class="admin-stat-card">
+            <div class="stat-icon ${c.cls}">${c.icon}</div>
+            <div>
+              <div class="stat-value">${c.val}</div>
+              <div class="stat-label">${c.label}</div>
+            </div>
+          </div>
+        `).join('');
+      } catch(e) {}
+    }
+
+    async function loadTickets() {
+      const status = document.getElementById('statusFilter').value;
+      const category = document.getElementById('categoryFilter').value;
+      const params = new URLSearchParams();
+      if (status !== 'all') params.set('status', status);
+      if (category !== 'all') params.set('category', category);
+
+      try {
+        const data = await api(`/api/admin/tickets?${params}`);
+        allTickets = data.tickets;
+        renderTickets(allTickets);
+      } catch(err) {
+        document.getElementById('ticketList').innerHTML = `<div class="alert alert-error">❌ ${err.message}</div>`;
+      }
+    }
+
+    function renderTickets(tickets) {
+      const list = document.getElementById('ticketList');
+      if (tickets.length === 0) {
+        list.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-icon">🎉</div>
+            <div class="empty-title">没有符合条件的工单</div>
+            <div class="empty-desc">尝试切换筛选条件查看其他工单</div>
+          </div>
+        `;
+        return;
+      }
+      list.innerHTML = tickets.map(t => renderTicketCard(t, true)).join('');
+    }
+
+    window.handleTicketDetail = function(id) {
+      currentTicket = allTickets.find(t => t.id === id);
+      if (!currentTicket) return;
+      const status = STATUS_MAP[currentTicket.status];
+      const priority = PRIORITY_MAP[currentTicket.priority];
+      const category = CATEGORY_MAP[currentTicket.category];
+
+      document.getElementById('modalTitle').textContent = `处理工单 #${String(currentTicket.id).padStart(4, '0')}`;
+      document.getElementById('modalBody').innerHTML = `
+        <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+          <span class="tag ${priority.class}">${priority.icon} ${priority.label}</span>
+          <span class="tag ${status.class}">${status.icon} ${status.label}</span>
+          <span class="tag tag-category">${category}</span>
+        </div>
+        <div style="background:var(--inset-light);box-shadow:var(--inset-shadow);padding:10px 16px;border-radius:10px;margin-bottom:16px;font-size:13px;color:var(--text-soft)">
+          👤 提交人：<strong>${escapeHtml(currentTicket.username)}</strong> · 🕐 ${currentTicket.created_at}
+        </div>
+        <h3 style="font-size:20px;margin-bottom:12px">${escapeHtml(currentTicket.title)}</h3>
+        <div style="padding:16px;border-radius:12px;background:var(--inset-light);box-shadow:var(--inset-shadow);margin-bottom:20px;line-height:1.7">
+          ${escapeHtml(currentTicket.content).replace(/\n/g, '<br>')}
+        </div>
+        <div class="form-group">
+          <label class="form-label">更新状态</label>
+          <select class="form-select" id="statusSelect">
+            <option value="pending" ${currentTicket.status==='pending'?'selected':''}>⏳ 待处理</option>
+            <option value="processing" ${currentTicket.status==='processing'?'selected':''}>🔧 处理中</option>
+            <option value="resolved" ${currentTicket.status==='resolved'?'selected':''}>✅ 已解决</option>
+            <option value="closed" ${currentTicket.status==='closed'?'selected':''}>🔒 已关闭</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">回复内容</label>
+          <textarea class="form-textarea" id="replyInput" placeholder="输入给用户的回复..." maxlength="1000">${escapeHtml(currentTicket.reply || '')}</textarea>
+        </div>
+      `;
+      document.getElementById('modalFooter').innerHTML = `
+        <button class="btn btn-ghost btn-sm" onclick="closeModal()">取消</button>
+        <button class="btn btn-primary btn-sm" onclick="saveTicket()">💾 保存</button>
+      `;
+      document.getElementById('manageModal').classList.add('show');
+    }
+
+    async function saveTicket() {
+      if (!currentTicket) return;
+      const status = document.getElementById('statusSelect').value;
+      const reply = document.getElementById('replyInput').value.trim();
+      try {
+        await api(`/api/admin/tickets/${currentTicket.id}`, {
+          method: 'PUT',
+          body: JSON.stringify({ status, reply })
+        });
+        showToast('工单已更新', 'success');
+        closeModal();
+        await loadStats();
+        await loadTickets();
+      } catch(err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    function closeModal() {
+      document.getElementById('manageModal').classList.remove('show');
+    }
+
+    document.getElementById('manageModal').addEventListener('click', (e) => {
+      if (e.target.id === 'manageModal') closeModal();
+    });
+  </script>
+</body>
+</html>
