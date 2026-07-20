@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>注册 - 工单反馈系统</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <nav class="navbar" id="navbar"></nav>
+
+  <div class="auth-page">
+    <div class="card-elevated auth-card">
+      <div class="auth-header">
+        <div class="auth-icon">✨</div>
+        <h1 class="auth-title">创建账户</h1>
+        <p class="auth-subtitle">加入我们，让反馈被听见</p>
+      </div>
+
+      <div id="alertBox"></div>
+
+      <form id="registerForm">
+        <div class="form-group">
+          <label class="form-label">用户名</label>
+          <input type="text" class="form-input" name="username" placeholder="至少 3 个字符" required autocomplete="username">
+        </div>
+        <div class="form-group">
+          <label class="form-label">邮箱（选填）</label>
+          <input type="email" class="form-input" name="email" placeholder="your@email.com" autocomplete="email">
+        </div>
+        <div class="form-group">
+          <label class="form-label">密码</label>
+          <input type="password" class="form-input" name="password" placeholder="至少 6 个字符" required autocomplete="new-password">
+        </div>
+        <div class="form-group">
+          <label class="form-label">确认密码</label>
+          <input type="password" class="form-input" name="password2" placeholder="再次输入密码" required autocomplete="new-password">
+        </div>
+        <button type="submit" class="btn btn-primary btn-block btn-lg">注册账户</button>
+      </form>
+
+      <div class="auth-footer">
+        已有账户？<a href="/pages/login.html">去登录 →</a>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/app.js"></script>
+  <script>
+    renderNavbar('register');
+
+    document.getElementById('registerForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const form = e.target;
+      const username = form.username.value.trim();
+      const email = form.email.value.trim();
+      const password = form.password.value;
+      const password2 = form.password2.value;
+      const alertBox = document.getElementById('alertBox');
+
+      if (password !== password2) {
+        alertBox.innerHTML = `<div class="alert alert-error">❌ 两次输入的密码不一致</div>`;
+        return;
+      }
+
+      try {
+        const btn = form.querySelector('button');
+        btn.textContent = '注册中...';
+        btn.disabled = true;
+        await api('/api/register', {
+          method: 'POST',
+          body: JSON.stringify({ username, email, password })
+        });
+        showToast('注册成功，欢迎加入！', 'success');
+        setTimeout(() => location.href = '/pages/my-tickets.html', 1000);
+      } catch(err) {
+        alertBox.innerHTML = `<div class="alert alert-error">❌ ${err.message}</div>`;
+        form.querySelector('button').textContent = '注册账户';
+        form.querySelector('button').disabled = false;
+      }
+    });
+
+    api('/api/me').then(({user}) => {
+      if (user) location.href = '/pages/my-tickets.html';
+    });
+  </script>
+</body>
+</html>
