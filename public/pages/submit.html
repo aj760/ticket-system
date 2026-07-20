@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>提交反馈 - 工单反馈系统</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <nav class="navbar" id="navbar"></nav>
+
+  <div class="page-wrap">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">✏️ 提交反馈</h1>
+        <p class="page-subtitle">告诉我们你遇到的问题或建议，我们会认真对待每一条反馈</p>
+      </div>
+      <a href="/pages/my-tickets.html" class="btn btn-ghost">← 我的工单</a>
+    </div>
+
+    <div class="card-elevated" style="max-width:720px;margin:0 auto">
+      <div id="alertBox"></div>
+      <form id="ticketForm">
+        <div class="form-group">
+          <label class="form-label">工单标题</label>
+          <input type="text" class="form-input" name="title" placeholder="一句话概括你的问题或建议" required maxlength="100">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">问题分类</label>
+          <select class="form-select" name="category" required>
+            <option value="bug">🐛 Bug 反馈</option>
+            <option value="feature">💡 功能建议</option>
+            <option value="account">👤 账号问题</option>
+            <option value="performance">⚡ 性能问题</option>
+            <option value="ui">🎨 界面问题</option>
+            <option value="other">📦 其他</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">优先级</label>
+          <div class="priority-grid" id="priorityGrid">
+            <div class="priority-option" data-value="low"><span class="p-emoji">⚪</span>低</div>
+            <div class="priority-option selected" data-value="normal"><span class="p-emoji">🔵</span>普通</div>
+            <div class="priority-option" data-value="high"><span class="p-emoji">🟠</span>高</div>
+            <div class="priority-option" data-value="urgent"><span class="p-emoji">🔴</span>紧急</div>
+          </div>
+          <input type="hidden" name="priority" value="normal">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">详细描述</label>
+          <textarea class="form-textarea" name="content" placeholder="请详细描述你遇到的问题、复现步骤或你的建议。描述越详细，我们处理得越快。" required minlength="10" maxlength="2000"></textarea>
+          <div style="text-align:right;font-size:12px;color:var(--text-mute);margin-top:6px" id="charCount">0 / 2000</div>
+        </div>
+
+        <div style="display:flex;gap:12px">
+          <button type="submit" class="btn btn-primary btn-lg btn-block">🚀 提交工单</button>
+          <button type="button" class="btn btn-ghost btn-lg" onclick="location.href='/pages/my-tickets.html'">取消</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="/js/app.js"></script>
+  <script>
+    (async () => {
+      const user = await requireAuth();
+      if (user) renderNavbar('submit');
+
+      // 优先级选择
+      const priorityGrid = document.getElementById('priorityGrid');
+      priorityGrid.addEventListener('click', (e) => {
+        const opt = e.target.closest('.priority-option');
+        if (!opt) return;
+        priorityGrid.querySelectorAll('.priority-option').forEach(o => o.classList.remove('selected'));
+        opt.classList.add('selected');
+        document.querySelector('input[name=priority]').value = opt.dataset.value;
+      });
+
+      // 字数统计
+      const textarea = document.querySelector('textarea[name=content]');
+      textarea.addEventListener('input', () => {
+        document.getElementById('charCount').textContent = `${textarea.value.length} / 2000`;
+      });
+
+      document.getElementById('ticketForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const form = e.target;
+        const alertBox = document.getElementById('alertBox');
+        const data = {
+          title: form.title.value.trim(),
+          category: form.category.value,
+          priority: form.priority.value,
+          content: form.content.value.trim()
+        };
+
+        try {
+          const btn = form.querySelector('button[type=submit]');
+          btn.textContent = '提交中...';
+          btn.disabled = true;
+          await api('/api/tickets', { method: 'POST', body: JSON.stringify(data) });
+          showToast('工单提交成功！我们会尽快处理', 'success');
+          setTimeout(() => location.href = '/pages/my-tickets.html', 1200);
+        } catch(err) {
+          alertBox.innerHTML = `<div class="alert alert-error">❌ ${err.message}</div>`;
+          btn.textContent = '🚀 提交工单';
+          btn.disabled = false;
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
