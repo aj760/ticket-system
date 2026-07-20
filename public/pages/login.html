@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>登录 - 工单反馈系统</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <nav class="navbar" id="navbar"></nav>
+
+  <div class="auth-page">
+    <div class="card-elevated auth-card">
+      <div class="auth-header">
+        <div class="auth-icon">🔐</div>
+        <h1 class="auth-title">欢迎回来</h1>
+        <p class="auth-subtitle">登录你的账户继续使用</p>
+      </div>
+
+      <div id="alertBox"></div>
+
+      <form id="loginForm">
+        <div class="form-group">
+          <label class="form-label">用户名</label>
+          <input type="text" class="form-input" name="username" placeholder="请输入用户名" required autocomplete="username">
+        </div>
+        <div class="form-group">
+          <label class="form-label">密码</label>
+          <input type="password" class="form-input" name="password" placeholder="请输入密码" required autocomplete="current-password">
+        </div>
+        <button type="submit" class="btn btn-primary btn-block btn-lg">登录</button>
+      </form>
+
+      <div class="auth-footer">
+        还没有账户？<a href="/pages/register.html">立即注册 →</a>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/app.js"></script>
+  <script>
+    renderNavbar('login');
+
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const form = e.target;
+      const username = form.username.value.trim();
+      const password = form.password.value;
+      const alertBox = document.getElementById('alertBox');
+
+      try {
+        const btn = form.querySelector('button');
+        btn.textContent = '登录中...';
+        btn.disabled = true;
+        const data = await api('/api/login', {
+          method: 'POST',
+          body: JSON.stringify({ username, password })
+        });
+        showToast('登录成功，欢迎回来！', 'success');
+        setTimeout(() => {
+          if (data.user.role === 'admin') {
+            location.href = '/pages/admin.html';
+          } else {
+            location.href = '/pages/my-tickets.html';
+          }
+        }, 800);
+      } catch(err) {
+        alertBox.innerHTML = `<div class="alert alert-error">❌ ${err.message}</div>`;
+        form.querySelector('button').textContent = '登录';
+        form.querySelector('button').disabled = false;
+      }
+    });
+
+    // 已登录则跳转
+    api('/api/me').then(({user}) => {
+      if (user) {
+        location.href = user.role === 'admin' ? '/pages/admin.html' : '/pages/my-tickets.html';
+      }
+    });
+  </script>
+</body>
+</html>
