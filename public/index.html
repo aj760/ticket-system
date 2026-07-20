@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>工单反馈系统 - 让反馈更高效</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <nav class="navbar" id="navbar"></nav>
+
+  <!-- Hero 区域 -->
+  <section class="hero">
+    <div class="hero-grid">
+      <div>
+        <div class="hero-badge">
+          <span class="dot"></span>
+          <span>实时反馈 · 高效协作 · 透明追踪</span>
+        </div>
+        <h1 class="hero-title">
+          你的声音，<br>
+          <span class="gradient-text">驱动产品进化</span>
+        </h1>
+        <p class="hero-desc">
+          提交反馈、追踪进度、获得回复。一站式工单管理系统，
+          让每一个问题都被认真对待，让每一次改进都有迹可循。
+        </p>
+        <div class="hero-actions">
+          <a href="/pages/register.html" class="btn btn-primary btn-lg">🚀 立即开始</a>
+          <a href="/pages/login.html" class="btn btn-ghost btn-lg">登录系统</a>
+        </div>
+      </div>
+      <div class="hero-visual">
+        <div class="float-card">
+          <div class="float-card-header">
+            <div class="float-card-icon">🎫</div>
+            <div>
+              <div style="font-weight:700;font-size:15px">工单 #0042</div>
+              <div style="font-size:12px;color:var(--text-mute)">已提交</div>
+            </div>
+          </div>
+          <div class="float-card-line"></div>
+          <div class="float-card-line short"></div>
+          <div style="display:flex;gap:8px;margin-top:16px">
+            <span class="tag tag-pending">⏳ 待处理</span>
+            <span class="tag tag-normal">🔵 普通</span>
+          </div>
+          <div style="margin-top:16px;padding:12px;border-radius:10px;background:linear-gradient(145deg,#eafaf1,#d5f5e3);box-shadow:var(--inset-shadow);font-size:13px;color:#1e8449">
+            <strong>✅ 已解决</strong> 已在 v2.1.0 修复
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 功能特性 -->
+  <section class="stats-section" id="features">
+    <h2 class="stats-title">为什么选择我们</h2>
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon blue">⚡</div>
+        <div class="stat-value" style="font-size:20px">快速提交</div>
+        <div class="stat-label">30 秒创建工单，分类优先级一目了然</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon green">🔄</div>
+        <div class="stat-value" style="font-size:20px">实时追踪</div>
+        <div class="stat-label">状态全流程透明，处理进度随时可见</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon orange">💬</div>
+        <div class="stat-value" style="font-size:20px">双向沟通</div>
+        <div class="stat-label">管理员在线回复，问题闭环管理</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon purple">🛡️</div>
+        <div class="stat-value" style="font-size:20px">安全可靠</div>
+        <div class="stat-label">密码加密存储，会话安全保护</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 数据统计 -->
+  <section class="stats-section" id="stats">
+    <h2 class="stats-title">系统数据概览</h2>
+    <div class="stats-grid" id="publicStats">
+      <div class="stat-card"><div class="stat-icon blue">🎫</div><div class="stat-value">-</div><div class="stat-label">工单总数</div></div>
+      <div class="stat-card"><div class="stat-icon green">✅</div><div class="stat-value">-</div><div class="stat-label">已解决</div></div>
+      <div class="stat-card"><div class="stat-icon orange">⏳</div><div class="stat-value">-</div><div class="stat-label">待处理</div></div>
+      <div class="stat-card"><div class="stat-icon purple">👥</div><div class="stat-value">-</div><div class="stat-label">注册用户</div></div>
+    </div>
+  </section>
+
+  <script src="/js/app.js"></script>
+  <script>
+    renderNavbar('home');
+
+    // 加载公开统计数据（用管理员接口，非管理员会失败，做兜底处理）
+    async function loadStats() {
+      try {
+        const { user } = await api('/api/me');
+        if (user && user.role === 'admin') {
+          const stats = await api('/api/admin/stats');
+          const cards = document.querySelectorAll('#publicStats .stat-value');
+          cards[0].textContent = stats.total;
+          cards[1].textContent = stats.resolved;
+          cards[2].textContent = stats.pending;
+          cards[3].textContent = stats.users;
+        }
+      } catch(e) {}
+    }
+    loadStats();
+  </script>
+</body>
+</html>
