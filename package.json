@@ -1,0 +1,19 @@
+{
+  "name": "ticket-feedback-system",
+  "version": "1.0.0",
+  "description": "现代工单反馈系统 - 半拟物风格 UI",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "express": "^4.19.2",
+    "express-session": "^1.18.0",
+    "pg": "^8.12.0"
+  }
+}
